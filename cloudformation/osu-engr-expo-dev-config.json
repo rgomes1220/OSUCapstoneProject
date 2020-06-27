@@ -1,0 +1,16 @@
+{
+  "Parameters": {
+    "AppPrefix": "osu-engr-expo",
+    "DeplEnv": "dev"
+  },
+  "StackPolicy": {
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": "Update:*",
+        "Principal": "*",
+        "Resource": "*"
+      }
+    ]
+  }
+}

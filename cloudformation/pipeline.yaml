@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  AppPrefix:
+    Description: Prefix for the application
+    Type: String
+    Default: osu-engr-expo
+  DeplEnv:
+    Description: Deployment environment
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+  ProjectSource:
+    Type: String
+    Default: "https://github.com/conroyjohn/osu-engr-expo"
+    Description: "Source control URL (e.g. Github)"
+  GithubOwner:
+    Type: String
+    Default: conroyjohn
+  GithubRepo:
+    Type: String
+    Default: osu-engr-expo
+  GitBranch:
+    Type: String
+  GithubOAuthToken:
+    Type: String
+    Description: "Github personal access token"
+  CloudFormationServiceRole:
+    Type: String
+    Description: CloudFormation Service role
+  CodeBuildServiceRole:
+    Type: String
+    Description: CodeBuild Service role
+
+Resources:
+  CodeArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AppPrefix}-${DeplEnv}-artifacts
+
+  CodeBuildCloudFormation:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${AppPrefix}-${DeplEnv}-build-cf
+      Description: Builds and packages artifacts for deployment
+      ServiceRole: !Ref CodeBuildServiceRole
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yaml
+      SourceVersion: !Sub ${GitBranch}
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        EnvironmentVariables:
+          - Name: S3_ARTIFACT_BUCKET
+            Value: !Sub ${AppPrefix}-${DeplEnv}-artifacts
+          - Name: S3_ARTIFACT_ROOT_FOLDER
+            Value: /code
+      Artifacts:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 15
+
+  CodeBuildFrontEnd:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${AppPrefix}-${DeplEnv}-build-front-end
+      Description: Builds Expo front-end and deploys to S3
+      ServiceRole: !Ref CodeBuildServiceRole
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: expo-front-end/buildspec-front-end.yaml
+      SourceVersion: !Sub ${GitBranch}
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        EnvironmentVariables:
+          - Name: S3_Host_Bucket
+            Value: !Sub ${AppPrefix}-${DeplEnv}-website
+      Artifacts:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 15
+
+  CodePipeline:
+    Type: "AWS::CodePipeline::Pipeline"
+    Properties:
+      RoleArn: !GetAtt CodePipeLineRole.Arn
+      ArtifactStore:
+        Location: !Ref CodeArtifactsBucket
+        Type: S3
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: source
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: 1
+              OutputArtifacts:
+                - Name: SourceArtifacts
+              Configuration:
+                Owner: !Ref GithubOwner
+                Repo: !Ref GithubRepo
+                Branch: !Sub ${GitBranch}
+                OAuthToken: !Ref GithubOAuthToken
+              RunOrder: 1
+        - Name: Build-CloudFormation
+          Actions:
+            - Name: build-cloudformation
+              InputArtifacts:
+                - Name: SourceArtifacts
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: BuildArtifacts
+              Configuration:
+                ProjectName: !GetAtt [CodeBuildCloudFormation, Arn]
+              RunOrder: 1
+        - Name: Deploy-Cloudformation
+          Actions:
+            - Name: deploy-cloudformation
+              InputArtifacts:
+                - Name: BuildArtifacts
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              OutputArtifacts:
+                - Name: !Sub ${AppPrefix}-${DeplEnv}-cloudformation-artifacts
+              Configuration:
+                RoleArn: !Ref CloudFormationServiceRole
+                ActionMode: CREATE_UPDATE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AppPrefix}-${DeplEnv}-stack
+                TemplateConfiguration: !Sub BuildArtifacts::${AppPrefix}-${DeplEnv}-config.json
+                TemplatePath: !Sub BuildArtifacts::${AppPrefix}-packaged.yaml
+              RunOrder: 1
+        - Name: Build-Front-End
+          Actions:
+            - Name: build-front-end
+              InputArtifacts:
+                - Name: SourceArtifacts
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !GetAtt [CodeBuildFrontEnd, Arn]
+              RunOrder: 1
+
+  CodePipeLineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "codepipeline.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: expo-code-pipeline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:GetBucketVersioning"
+                  - "s3:PutObject"
+                Resource:
+                  - !GetAtt CodeArtifactsBucket.Arn
+                  - !Join ["", [!GetAtt CodeArtifactsBucket.Arn, "/*"]]
+              - Effect: Allow
+                Action:
+                  - "cloudformation:DescribeStacks"
+                  - "cloudformation:CreateStack"
+                  - "cloudformation:DeleteStack"
+                  - "cloudformation:UpdateStack"
+                  - "cloudformation:CreateChangeSet"
+                  - "cloudformation:ExecuteChangeSet"
+                  - "cloudformation:DeleteChangeSet"
+                  - "cloudformation:DescribeChangeSet"
+                  - "cloudformation:SetStackPolicy"
+                  - "cloudformation:SetStackPolicy"
+                  - "cloudformation:ValidateTemplate"
+                  - "codebuild:StartBuild"
+                  - "codebuild:BatchGetBuilds"
+                  - "iam:GetRole"
+                  - "iam:PassRole"
+                Resource: "*"

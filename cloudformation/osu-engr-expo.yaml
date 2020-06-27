@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppPrefix:
+    Description: Prefix for the application
+    Type: String
+    Default: osu-engr-expo
+
+  DeplEnv:
+    Description: Deployment environment
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+
+Resources:
+  FrontEndStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: front-end.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+
+  CognitoStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: cognito.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+
+  RestApiStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: restapi.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv

@@ -1,0 +1,255 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppPrefix:
+    Description: Prefix for the application
+    Type: String
+    Default: osu-engr-expo
+
+  DeplEnv:
+    Description: Deployment environment
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+
+Resources:
+  #Don't need to change or create for each lambda
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      ApiKeySourceType: HEADER
+      Description: An API Gateway with a Lambda Integration
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: !Join ["-", [!Ref AppPrefix, !Ref DeplEnv, "rest-api"]]
+
+  #Don't need to change or create for each lambda
+  ApiGatewayModel:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      ContentType: "application/json"
+      RestApiId: !Ref RestApi
+      Schema: {}
+
+  #These are the API routes, create as needed
+  HelloWorldApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "hello-world"
+      RestApiId: !Ref RestApi
+
+  GetAllProjectsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "get-all-projects"
+      RestApiId: !Ref RestApi
+
+  CreateNewProjectResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "create-new-project"
+      RestApiId: !Ref RestApi
+
+  CreateNewUserResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "create-new-user"
+      RestApiId: !Ref RestApi
+
+  GetAllUsersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "get-all-users"
+      RestApiId: !Ref RestApi
+
+  GetProjectResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "get-project"
+      RestApiId: !Ref RestApi
+
+  GetUserResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "get-user"
+      RestApiId: !Ref RestApi
+
+  UpdateUserDetailsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "update-user-details"
+      RestApiId: !Ref RestApi
+
+  UpdateProjectDetailsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      #parent resource, this one is root
+      ParentId: !GetAtt RestApi.RootResourceId
+      #name of the route
+      PathPart: "update-project-details"
+      RestApiId: !Ref RestApi
+
+  HelloWorldLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: hello-world-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref HelloWorldApiResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - HelloWorldApiResource
+
+  GetAllProjectsLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: get-all-projects-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref GetAllProjectsResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - GetAllProjectsResource
+
+  CreateNewProjectLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: create-new-project-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref CreateNewProjectResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - CreateNewProjectResource
+
+  CreateNewUserLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: create-new-user-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref CreateNewUserResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - CreateNewUserResource
+
+  GetAllUsersLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: get-all-users-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref GetAllUsersResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - GetAllUsersResource
+
+  GetProjectLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: get-project-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref GetProjectResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - GetProjectResource
+
+  GetUserLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: get-user-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref GetUserResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - GetUserResource
+
+  UpdateUserDetailsLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: update-user-details.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref UpdateUserDetailsResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - UpdateUserDetailsResource
+
+  UpdateProjectDetailsLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: update-project-details-lambda.yaml
+      TimeoutInMinutes: "60"
+      Parameters:
+        AppPrefix: !Ref AppPrefix
+        DeplEnv: !Ref DeplEnv
+        ResourceId: !Ref UpdateProjectDetailsResource
+        RestApiId: !Ref RestApi
+    DependsOn:
+      - UpdateProjectDetailsResource
+
+  #Don't need to change or create for each lambda
+  RestApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      Description: Rest API deployment
+      RestApiId: !Ref RestApi
+    DependsOn:
+      - HelloWorldLambdaStack
+      - GetAllProjectsLambdaStack
+      - CreateNewProjectLambdaStack
+
+  #Don't need to change or create for each lambda
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref RestApiDeployment
+      Description: Rest API stage v0
+      RestApiId: !Ref RestApi
+      StageName: "v0"
+    DependsOn:
+      - RestApiDeployment

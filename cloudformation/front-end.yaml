@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppPrefix:
+    Description: Prefix for the application
+    Type: String
+    Default: osu-engr-expo
+
+  DeplEnv:
+    Description: Deployment environment
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+
+Resources:
+  # Create an S3 Bucket that serves a static website (i.e. React app)
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AppPrefix}-${DeplEnv}-website
+      AccessControl: PublicRead # visitors need to be able to access the sie
+      WebsiteConfiguration: # this makes the S3 Bucket a static website/app
+        IndexDocument: index.html # default object served when visiting S3 domain
+        ErrorDocument: index.html # just send to app, let React handle errors and routing
+
+  # Add a Bucket Policy that lets public visitors access the web app
+  MyBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket # attach to bucket being created
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement: # lets the public access/view the contents of your Bucket, i.e. web app
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: "*" # wildcard, allow all requests
+            Action: "s3:GetObject"
+            Resource: !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, /*]]
+
+  CloudFrontDistribution:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt WebsiteBucket.DomainName
+            Id: !Ref WebsiteBucket
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultRootObject: index.html
+        Enabled: true
+        DefaultCacheBehavior:
+          MinTTL: 86400
+          MaxTTL: 31536000
+          ForwardedValues:
+            QueryString: true
+          TargetOriginId: !Ref WebsiteBucket
+          ViewerProtocolPolicy: "redirect-to-https"
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: "/index.html"

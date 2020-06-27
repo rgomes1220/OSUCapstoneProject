@@ -1,0 +1,26 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+
+scratch/*
+
+# dependencies
+expo-front-end/node_modules
+expo-front-end/*.pnp
+expo-front-end/*.pnp.js
+
+# testing
+expo-front-end/coverage
+
+# production
+expo-front-end/build
+
+# misc
+expo-front-end/*.DS_Store
+expo-front-end/*.env.local
+expo-front-end/*.env.development.local
+expo-front-end/*.env.test.local
+expo-front-end/*.env.production.local
+
+expo-front-end/*npm-debug.log*
+expo-front-end/*yarn-debug.log*
+expo-front-end/*yarn-error.log*

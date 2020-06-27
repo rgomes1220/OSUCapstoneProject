@@ -1,0 +1,23 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+    commands:
+      - echo Entered the install phase...
+      - cd expo-front-end
+      - npm install
+    finally:
+      - echo install phase done
+  build:
+    commands:
+      - echo Entered the build phase...
+      - echo Build started on `date`
+      - npm run build
+    finally:
+      - echo Packages created..
+  post_build:
+    commands:
+      - aws s3 sync build/ s3://${S3_Host_Bucket} --delete
+      - echo Build completed on `date`

@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppPrefix:
+    Description: Prefix for the application
+    Type: String
+    Default: osu-engr-expo
+
+  DeplEnv:
+    Description: Deployment environment
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+
+  ResourceId:
+    Description: ID of Resource to attach http method to
+    Type: String
+
+  RestApiId:
+    Description: ID of Rest Api
+    Type: String
+
+Resources:
+  GetAllProjectsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      #set to name of directory for the lambda function in lambdas directory
+      Code: get-all-projects
+      Description: Lambda function that is triggered on GET /get-all-projects/* requests
+      #pass environment variables to lambda function
+      Environment:
+        Variables:
+          #KEY: VALUE
+          DEPL_ENV: !Ref DeplEnv
+      #name of function to be created in AWS. Only change "hello-world" to the name of new function
+      FunctionName:
+        !Join ["-", [!Ref AppPrefix, !Ref DeplEnv, "get-all-projects"]]
+      #name of the 'main' function inside lambda_function
+      Handler: lambda_function.handler
+      MemorySize: 256
+      #role which gives privleges to access other AWS resource
+      Role: !GetAtt GetAllProjectsLambdaServiceRole.Arn
+      #language for lambda function
+      Runtime: python3.7
+      Timeout: 100
+
+  GetAllProjectsApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        ConnectionType: INTERNET
+        IntegrationHttpMethod: POST
+        TimeoutInMillis: 29000
+        Type: AWS_PROXY
+        #Only need to change the below to be specific to your created lambda function
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetAllProjectsLambda.Arn}/invocations"
+      ResourceId: !Ref ResourceId
+      RestApiId: !Ref RestApiId
+    DependsOn:
+      - GetAllProjectsLambda
+
+  #dont need to change this at all
+  OptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: None
+      RestApiId: !Ref RestApiId
+      ResourceId: !Ref ResourceId
+      HttpMethod: OPTIONS
+      Integration:
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: "MOCK"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: "Empty"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  #Create invoke permissions for API Gateway for each new lambda
+  GetAllProjectsApiInvoke:
+    #Only need to change the things that mention hello-world.
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt GetAllProjectsLambda.Arn
+      Principal: "apigateway.amazonaws.com"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*/GET/get-all-projects"
+
+  GetAllProjectsLambdaServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "s3:*"
+                Effect: "Allow"
+                Resource: "*"
+              - Action:
+                  - "dynamodb:*"
+                Effect: "Allow"
+                Resource: "*"
+          PolicyName:
+            !Join [
+              "-",
+              [!Ref AppPrefix, !Ref DeplEnv, "lambda-service-get-all-projects"],
+            ]

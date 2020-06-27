@@ -1,0 +1,36 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      python: 3.7
+    commands:
+      - echo Entered the install phase...
+    finally:
+      - echo install phase done
+  pre_build:
+    commands:
+      - echo Entered the pre_build phase...
+      - rm -rf build
+      - mkdir -p build
+    finally:
+      - echo Prebuild phase done
+  build:
+    commands:
+      - echo Entered the build phase...
+      - echo Build started on `date`
+      - ./build_helper.sh && cd $PWD/build && ls && aws cloudformation package --template osu-engr-expo.yaml --s3-bucket ${S3_ARTIFACT_BUCKET} --output-template-file osu-engr-expo-packaged.yaml  --force-upload
+    finally:
+      - echo Packages created..
+  post_build:
+    commands:
+      - echo Entered the post_build phase...
+      - echo Destination folders ${S3_ARTIFACT_BUCKET}/{$S3_ARTIFACT_ROOT_FOLDER}..
+      - echo Build completed on `date`
+artifacts:
+  files:
+    - build/*
+  discard-paths: yes
+
+cache:
+  paths:
+    - "/root/.m2/**/*"
