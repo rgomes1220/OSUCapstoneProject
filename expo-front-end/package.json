@@ -20,7 +20,7 @@
     "react-image-resizer": "^1.3.0",
     "react-responsive": "^8.0.3",
     "react-router-dom": "^5.1.2",
-    "react-scripts": "3.3.0",
+    "react-scripts": "5.0.1",
     "react-table-filter": "^2.0.1",
     "react-tooltip": "^4.0.3",
     "reactide-config": "^1.0.2",
@@ -63,7 +63,7 @@
     "@babel/preset-react": "^7.0.0-beta.0",
     "babel-loader": "^8.0.0-beta.0",
     "file-loader": "^4.0.0",
-    "node-sass": "^4.12.0",
+    "node-sass": "^9.0.0",
     "sass-loader": "^7.1.0",
     "url-loader": "^2.0.0"
   }
